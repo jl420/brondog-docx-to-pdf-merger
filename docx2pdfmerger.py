@@ -4,6 +4,47 @@ from docx2pdf import convert
 import os
 from PyPDF2 import PdfWriter
 import zipfile
+import shutil
+
+class Functions:
+    def search_for_dirs(path):
+        dirs = [path]
+        for item in os.listdir(path):
+            full_path = f'{path}/{item}'
+            if os.path.isdir(full_path):
+                # print(f'{item} is a directory')
+                dirs += Functions.search_for_dirs(full_path)
+            else:
+                # print(f'{item} is a file')
+                pass
+        
+        return dirs
+
+    def merge(folder_path, pdf_file_name):
+        dirs = Functions.search_for_dirs(folder_path)
+
+        merger = PdfWriter()
+
+        for dir in dirs:
+            print(dir)
+            convert(dir)
+
+            for file in os.listdir(dir):
+                if file[-4::] == '.pdf':
+
+                    full_path = f'{dir}/{file}'
+
+                    merger.append(full_path)
+                    os.remove(full_path)
+
+                    print(f'{file} : Done')
+
+            if len(os.listdir(dir)) == 0:
+                print('No files found')
+        
+        print('Done!')
+        merger.write(pdf_file_name)
+        merger.close()
 
 class Page(tk.Frame):
     def __init__(self, parent, controller):
@@ -55,39 +96,11 @@ class Folder_Merger(Page):
         if folder_path:
             self.folder_path_var.set(folder_path)
 
-    def get_files(self, path, file_paths):
-        for file in os.listdir(path):
-            full_path = f'{path}/{file}'
-            if os.path.isdir(full_path):
-                file_paths += self.get_files(full_path, [])
-            else:
-                file_paths.append(full_path)
-        
-        return file_paths
-
     def to_pdf(self):
         folder_path = self.folder_path_var.get()
+        pdf_file_name = self.pdf_file_name_var.get()
 
-        convert(folder_path)
-
-        merger = PdfWriter()
-
-        for file in os.listdir(folder_path):
-            if file[-4::] == '.pdf':
-
-                full_path = f'{folder_path}\\{file}'
-
-                merger.append(full_path)
-                os.remove(full_path)
-
-                print(f'{file} : Done')
-
-        merger.write(self.pdf_file_name_var.get())
-        merger.close()
-
-        if len(os.listdir(folder_path)) == 0:
-            print('No files found')
-        print('Done!')
+        Functions.merge(folder_path, pdf_file_name)
 
 class Zip_Merger(Page):
     def __init__(self, parent, controller):
@@ -134,29 +147,21 @@ class Zip_Merger(Page):
         if file_path:
             self.file_path_var.set(file_path)
 
-    def unzip(self, file_path):
+    def unzip(self, file_path, temp_dir_name):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
-            zip_ref.extractall('test')
+            zip_ref.extractall(temp_dir_name)
 
 
     def to_pdf(self):
         file_path = self.file_path_var.get()
+        pdf_file_name = self.pdf_file_name_var.get()
+        temp_dir_name = 'temp'
 
-        self.unzip(file_path)
-        # convert(file_path)
+        self.unzip(file_path, temp_dir_name)
+        
+        Functions.merge(temp_dir_name, pdf_file_name)
 
-        # merger = PdfWriter()
-
-        # for file in os.listdir(folder_path):
-        #     if file[-4::] == '.pdf':
-
-        #         full_path = f'{folder_path}\\{file}'
-
-        #         merger.append(full_path)
-        #         os.remove(full_path)
-
-        # merger.write(self.pdf_file_name_var.get())
-        # merger.close()
+        shutil.rmtree(temp_dir_name)
 
 class App(tk.Tk):
     def __init__(self):
