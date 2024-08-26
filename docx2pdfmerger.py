@@ -5,18 +5,15 @@ import os
 from PyPDF2 import PdfWriter
 import zipfile
 import shutil
+import datetime
 
 class Functions:
     def search_for_dirs(path):
         dirs = [path]
         for item in os.listdir(path):
             full_path = f'{path}/{item}'
-            if os.path.isdir(full_path):
-                # print(f'{item} is a directory')
+            if os.path.isdir(full_path) and '.docx' in [item[-5::] for item in os.listdir(full_path)]:
                 dirs += Functions.search_for_dirs(full_path)
-            else:
-                # print(f'{item} is a file')
-                pass
         
         return dirs
 
@@ -26,7 +23,7 @@ class Functions:
         merger = PdfWriter()
 
         for dir in dirs:
-            print(dir)
+            Functions.print_status_msg(f'Merging : {dir}')
             convert(dir)
 
             for file in os.listdir(dir):
@@ -37,14 +34,16 @@ class Functions:
                     merger.append(full_path)
                     os.remove(full_path)
 
-                    print(f'{file} : Done')
+                    Functions.print_status_msg(f'Completed : {file}')
 
-            if len(os.listdir(dir)) == 0:
-                print('No files found')
+            Functions.print_status_msg(f'Merged : {dir}')
         
-        print('Done!')
+        Functions.print_status_msg('Done!')
         merger.write(pdf_file_name)
         merger.close()
+
+    def print_status_msg(msg):
+        print(f'[{str(datetime.datetime.now())[0:19]}] {msg}')
 
 class Page(tk.Frame):
     def __init__(self, parent, controller):
