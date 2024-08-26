@@ -167,7 +167,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("DOCX to PDF Merger")
-        self.geometry("250x300")
+        self.geometry("250x260")
         self.frames = {}
         self.create_frames()
 
