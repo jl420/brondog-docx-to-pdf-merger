@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.font as tkFont
 from tkinter import filedialog, messagebox, ttk
 from docx2pdf import convert
 import os
@@ -16,34 +17,48 @@ class Functions:
                 dirs += Functions.search_for_dirs(full_path)
         
         return dirs
+    
+    def search_for_docx(folder_path):
+        dirs = Functions.search_for_dirs(folder_path)
+        docx = []
 
-    def merge(folder_path, pdf_file_name):
+        for dir in dirs:
+            for file in os.listdir(dir):
+                if file[-5::] == '.docx':
+                    docx.append(file)
+
+        return docx
+
+    def merge(folder_path, pdf_file_name, docx_selection):
         dirs = Functions.search_for_dirs(folder_path)
 
         merger = PdfWriter()
 
         for dir in dirs:
             Functions.print_status_msg(f'Merging : {dir}')
+
             convert(dir)
 
             for file in os.listdir(dir):
                 if file[-4::] == '.pdf':
+                    print()
 
                     full_path = f'{dir}/{file}'
 
-                    pdf_length = 0
-                    with open(full_path, 'rb') as f:
-                        reader = PdfReader(f)
-                        
-                        pdf_length = len(reader.pages)
+                    if f'{file[:-4]}.docx' in docx_selection:
+                        pdf_length = 0
+                        with open(full_path, 'rb') as f:
+                            reader = PdfReader(f)
+                            
+                            pdf_length = len(reader.pages)
 
-                    merger.append(full_path)
-                    if pdf_length % 2 == 1:
-                        merger.add_blank_page()
+                        merger.append(full_path)
+                        if pdf_length % 2 == 1:
+                            merger.add_blank_page()
+
+                        Functions.print_status_msg(f'Completed : {file}')
 
                     os.remove(full_path)
-
-                    Functions.print_status_msg(f'Completed : {file}')
 
             Functions.print_status_msg(f'Merged : {dir}')
         
@@ -69,21 +84,20 @@ class Folder_Merger(Page):
         container = tk.Frame(self)
         container.pack(fill="both", expand=True)
 
-        # container_scrollbar = tk.Scrollbar(container, orient='vertical')
-        # container_scrollbar.pack(side='right', fill='y')
+        file_dir_scrollbar_y = tk.Scrollbar(container, orient='vertical')
+        file_dir_scrollbar_y.pack(side='right', fill='y')
+        file_dir_scrollbar_x = tk.Scrollbar(container, orient='horizontal')
+        file_dir_scrollbar_x.pack(side='bottom', fill='x')
+        
+        self.file_dir = tk.Listbox(container, selectmode='multiple', yscrollcommand=file_dir_scrollbar_y.set, xscrollcommand=file_dir_scrollbar_x.set)
+        self.file_dir.pack(side='right', fill='both')
+
+        file_dir_scrollbar_y.config(command=self.file_dir.yview)
+        file_dir_scrollbar_x.config(command=self.file_dir.xview)
 
         self.content_frame = tk.Frame(container)
         self.content_frame.pack(side="top", fill="both", expand=True, padx=10)
         self.create_content()
-
-        # self.select_frame = tk.Frame(container)
-        # self.select_frame.pack(side="top", fill="both", expand=True, padx=10)
-
-        # self.select_frame_scrollbar = tk.Scrollbar(self.select_frame, orient='vertical')
-        # self.select_frame_scrollbar.pack(side = 'right', fill = 'y')
-
-        # self.select_frame_options = tk.Text(self.select_frame, height = 15, wrap = 'none', yscrollcommand = self.select_frame_scrollbar.set)
-        # self.select_frame_options.pack(side='top', fill='both')
 
     def create_content(self):
         tk.Label(self.content_frame, text="Selected Folder:").pack(side="top", pady=5)
@@ -91,7 +105,7 @@ class Folder_Merger(Page):
 
         tk.Button(self.content_frame, text="Browse", command=self.browse_folder).pack(pady=5)
 
-        tk.Label(self.content_frame, text="PDF File Name (ex: merged.pdf):").pack(pady=5)
+        tk.Label(self.content_frame, text="PDF File Name:").pack(pady=5)
         tk.Entry(self.content_frame, textvariable=self.pdf_file_name_var, width=30).pack(pady=5)
 
         tk.Button(self.content_frame, text="Create File", command=self.to_pdf).pack(pady=20)
@@ -106,6 +120,10 @@ class Folder_Merger(Page):
         if folder_path:
             self.folder_path_var.set(folder_path)
 
+        for file in Functions.search_for_docx(folder_path):
+            self.file_dir.insert('end', str(file))
+            self.file_dir.select_set(0, 'end')
+
     def to_pdf(self):
         folder_path = self.folder_path_var.get()
         pdf_file_name = self.pdf_file_name_var.get()
@@ -113,7 +131,11 @@ class Folder_Merger(Page):
         if pdf_file_name[-4::] != '.pdf':
             pdf_file_name += '.pdf'
 
-        Functions.merge(folder_path, pdf_file_name)
+        docx = []
+        for i in self.file_dir.curselection():
+            docx.append(self.file_dir.get(i))
+
+        Functions.merge(folder_path, pdf_file_name, docx)
 
 class Zip_Merger(Page):
     def __init__(self, parent, controller):
@@ -173,9 +195,14 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("DOCX to PDF Merger")
-        self.geometry("250x260")
-        self.iconbitmap('pdf.ico')
+        self.geometry("560x520")
+        # self.iconbitmap('pdf.ico')
         self.frames = {}
+
+        default_font = tkFont.nametofont('TkDefaultFont')
+        default_font.configure(size=16)
+
+        self.option_add('*Font', default_font)
 
         tabControl = ttk.Notebook(self)
 
