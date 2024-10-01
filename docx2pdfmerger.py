@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from docx2pdf import convert
 import os
-from PyPDF2 import PdfWriter
+from PyPDF2 import PdfWriter, PdfReader
 import zipfile
 import shutil
 import datetime
@@ -31,14 +31,23 @@ class Functions:
 
                     full_path = f'{dir}/{file}'
 
+                    pdf_length = 0
+                    with open(full_path, 'rb') as f:
+                        reader = PdfReader(f)
+                        
+                        pdf_length = len(reader.pages)
+
                     merger.append(full_path)
+                    if pdf_length % 2 == 1:
+                        merger.add_blank_page()
+
                     os.remove(full_path)
 
                     Functions.print_status_msg(f'Completed : {file}')
 
             Functions.print_status_msg(f'Merged : {dir}')
         
-        Functions.print_status_msg('Done!')
+        Functions.print_status_msg(f'Done! > {pdf_file_name}')
         merger.write(pdf_file_name)
         merger.close()
 
@@ -79,7 +88,7 @@ class Folder_Merger(Page):
 
         tk.Button(self.content_frame, text="Browse", command=self.browse_folder).pack(pady=5)
 
-        tk.Label(self.content_frame, text="PDF File Name:").pack(pady=5)
+        tk.Label(self.content_frame, text="PDF File Name (ex: merged.pdf):").pack(pady=5)
         tk.Entry(self.content_frame, textvariable=self.pdf_file_name_var, width=30).pack(pady=5)
 
         tk.Button(self.content_frame, text="Create File", command=self.to_pdf).pack(pady=20)
@@ -98,6 +107,9 @@ class Folder_Merger(Page):
     def to_pdf(self):
         folder_path = self.folder_path_var.get()
         pdf_file_name = self.pdf_file_name_var.get()
+
+        if pdf_file_name[-4::] != '.pdf':
+            pdf_file_name += '.pdf'
 
         Functions.merge(folder_path, pdf_file_name)
 
@@ -130,7 +142,7 @@ class Zip_Merger(Page):
 
         tk.Button(self.content_frame, text="Browse", command=self.browse_zip).pack(pady=5)
 
-        tk.Label(self.content_frame, text="PDF File Name:").pack(pady=5)
+        tk.Label(self.content_frame, text="PDF File Name (ex: merged.pdf):").pack(pady=5)
         tk.Entry(self.content_frame, textvariable=self.pdf_file_name_var, width=30).pack(pady=5)
 
         tk.Button(self.content_frame, text="Create File", command=self.to_pdf).pack(pady=20)
@@ -155,6 +167,9 @@ class Zip_Merger(Page):
         file_path = self.file_path_var.get()
         pdf_file_name = self.pdf_file_name_var.get()
         temp_dir_name = 'temp'
+
+        if pdf_file_name[-4::] != '.pdf':
+            pdf_file_name += '.pdf'
 
         self.unzip(file_path, temp_dir_name)
         

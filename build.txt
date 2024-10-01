@@ -1,0 +1,1 @@
+pyinstaller --onefile docx2pdfmerger.py
