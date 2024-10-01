@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 from docx2pdf import convert
 import os
 from PyPDF2 import PdfWriter, PdfReader
@@ -54,7 +54,7 @@ class Functions:
     def print_status_msg(msg):
         print(f'[{str(datetime.datetime.now())[0:19]}] {msg}')
 
-class Page(tk.Frame):
+class Page(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
@@ -69,18 +69,21 @@ class Folder_Merger(Page):
         container = tk.Frame(self)
         container.pack(fill="both", expand=True)
 
-        self.header_frame = tk.Frame(container)
-        self.header_frame.pack(side="top", fill="both", expand=True, padx=10)
-        self.create_header()
+        # container_scrollbar = tk.Scrollbar(container, orient='vertical')
+        # container_scrollbar.pack(side='right', fill='y')
 
         self.content_frame = tk.Frame(container)
         self.content_frame.pack(side="top", fill="both", expand=True, padx=10)
         self.create_content()
 
-    def create_header(self):
-        tk.Button(self.header_frame, text="Zip Merger", command=self.go_to_zip_merger).pack(side="left", pady=5)
-        tk.Button(self.header_frame, text="Folder Merger").pack(side="left", pady=5)
-        tk.Label(self.header_frame, text="Folder Merger").pack(side="left", pady=5)
+        # self.select_frame = tk.Frame(container)
+        # self.select_frame.pack(side="top", fill="both", expand=True, padx=10)
+
+        # self.select_frame_scrollbar = tk.Scrollbar(self.select_frame, orient='vertical')
+        # self.select_frame_scrollbar.pack(side = 'right', fill = 'y')
+
+        # self.select_frame_options = tk.Text(self.select_frame, height = 15, wrap = 'none', yscrollcommand = self.select_frame_scrollbar.set)
+        # self.select_frame_options.pack(side='top', fill='both')
 
     def create_content(self):
         tk.Label(self.content_frame, text="Selected Folder:").pack(side="top", pady=5)
@@ -93,7 +96,6 @@ class Folder_Merger(Page):
 
         tk.Button(self.content_frame, text="Create File", command=self.to_pdf).pack(pady=20)
 
-    
     def go_to_zip_merger(self):
         self.controller.show_frame(Zip_Merger)
 
@@ -123,18 +125,9 @@ class Zip_Merger(Page):
         container = tk.Frame(self)
         container.pack(fill="both", expand=True)
 
-        self.header_frame = tk.Frame(container)
-        self.header_frame.pack(side="top", fill="both", expand=True, padx=10)
-        self.create_header()
-
         self.content_frame = tk.Frame(container)
         self.content_frame.pack(side="top", fill="both", expand=True, padx=10)
         self.create_content()
-
-    def create_header(self):
-        tk.Button(self.header_frame, text="Zip Merger").pack(side="left", pady=5)
-        tk.Button(self.header_frame, text="Folder Merger", command=self.go_to_folder_merger).pack(side="left", pady=5)
-        tk.Label(self.header_frame, text="Zip Merger").pack(side="left", pady=5)
 
     def create_content(self):
         tk.Label(self.content_frame, text="Selected Zip File:").pack(side="top", pady=5)
@@ -162,7 +155,6 @@ class Zip_Merger(Page):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
             zip_ref.extractall(temp_dir_name)
 
-
     def to_pdf(self):
         file_path = self.file_path_var.get()
         pdf_file_name = self.pdf_file_name_var.get()
@@ -182,20 +174,17 @@ class App(tk.Tk):
         super().__init__()
         self.title("DOCX to PDF Merger")
         self.geometry("250x260")
+        self.iconbitmap('pdf.ico')
         self.frames = {}
-        self.create_frames()
 
-    def create_frames(self):
-        for F in (Folder_Merger, Zip_Merger):
-            page_name = F.__name__
-            frame = F(parent=self, controller=self)
-            self.frames[F] = frame
-            frame.grid(row=0, column=0, sticky="nsew")
-        self.show_frame(Folder_Merger)
+        tabControl = ttk.Notebook(self)
 
-    def show_frame(self, page_class):
-        frame = self.frames[page_class]
-        frame.tkraise()
+        folder_frame = Folder_Merger(self, self)
+        zip_frame = Zip_Merger(self, self)
+
+        tabControl.add(folder_frame, text='Folder Merger')
+        tabControl.add(zip_frame, text='Zip Merger')
+        tabControl.pack(expand=1, fill='both')
 
 if __name__ == "__main__":
     app = App()
