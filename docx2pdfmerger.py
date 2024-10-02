@@ -25,49 +25,71 @@ class Functions:
         for dir in dirs:
             for file in os.listdir(dir):
                 if file[-5::] == '.docx':
-                    docx.append(file)
+                    docx.append(f'{dir}/{file}')
 
         return docx
+    
+    def search_for_pdfs(folder_path):
+        dirs = Functions.search_for_dirs(folder_path)
+        pdfs = []
+
+        for dir in dirs:
+            for file in os.listdir(dir):
+                if file[-5::] == '.docx':
+                    pdfs.append(f'{dir}/{file[:-5]}.pdf')
+
+        return pdfs
 
     def merge(folder_path, pdf_file_name, docx_selection):
-        dirs = Functions.search_for_dirs(folder_path)
+
+        temp_dir = 'temp'
+
+        os.mkdir(temp_dir)
+        docs = Functions.search_for_docx(folder_path)
+
+        print(docs, docx_selection)
+        
+        for doc in docs:
+            if os.path.basename(doc) in docx_selection:
+                shutil.copyfile(doc, f'{temp_dir}/{os.path.basename(doc)}')
+
+        Functions.print_status_msg('Converting . . .')
+        convert(temp_dir)
 
         merger = PdfWriter()
 
-        for dir in dirs:
-            Functions.print_status_msg(f'Merging : {dir}')
+        for file in os.listdir(temp_dir):
+            if file[-4::] == '.pdf':
+                full_path = f'{temp_dir}/{file}'
 
-            convert(dir)
+                pdf_length = 0
+                with open(full_path, 'rb') as f:
+                    reader = PdfReader(f)
+                    
+                    pdf_length = len(reader.pages)
 
-            for file in os.listdir(dir):
-                if file[-4::] == '.pdf':
-                    print()
+                merger.append(full_path)
+                if pdf_length % 2 == 1:
+                    merger.add_blank_page()
 
-                    full_path = f'{dir}/{file}'
-
-                    if f'{file[:-4]}.docx' in docx_selection:
-                        pdf_length = 0
-                        with open(full_path, 'rb') as f:
-                            reader = PdfReader(f)
-                            
-                            pdf_length = len(reader.pages)
-
-                        merger.append(full_path)
-                        if pdf_length % 2 == 1:
-                            merger.add_blank_page()
-
-                        Functions.print_status_msg(f'Completed : {file}')
-
-                    os.remove(full_path)
-
-            Functions.print_status_msg(f'Merged : {dir}')
+                Functions.print_status_msg(f'Merged : {file}')
         
+        print()
         Functions.print_status_msg(f'Done! > {pdf_file_name}')
+        messagebox.showinfo("Merge", "Merge complete")
         merger.write(pdf_file_name)
         merger.close()
 
+        shutil.rmtree(temp_dir)
+
     def print_status_msg(msg):
         print(f'[{str(datetime.datetime.now())[0:19]}] {msg}')
+
+    def check_pdf_file_name(pdf_file_name):
+        if pdf_file_name[-4::] != '.pdf':
+            pdf_file_name += '.pdf'
+
+        return pdf_file_name
 
 class Page(ttk.Frame):
     def __init__(self, parent, controller):
@@ -120,22 +142,23 @@ class Folder_Merger(Page):
         if folder_path:
             self.folder_path_var.set(folder_path)
 
+        self.file_dir.delete(0, 'end')
         for file in Functions.search_for_docx(folder_path):
-            self.file_dir.insert('end', str(file))
+            self.file_dir.insert('end', f'\'{os.path.basename(file)}\' ({file})')
             self.file_dir.select_set(0, 'end')
 
     def to_pdf(self):
         folder_path = self.folder_path_var.get()
         pdf_file_name = self.pdf_file_name_var.get()
 
-        if pdf_file_name[-4::] != '.pdf':
-            pdf_file_name += '.pdf'
+        pdf_file_name = Functions.check_pdf_file_name(pdf_file_name)
 
-        docx = []
+        docx_selection = []
         for i in self.file_dir.curselection():
-            docx.append(self.file_dir.get(i))
+            docx = self.file_dir.get(i)
+            docx_selection.append(docx[1:docx.find("'", 1)])
 
-        Functions.merge(folder_path, pdf_file_name, docx)
+        Functions.merge(folder_path, pdf_file_name, docx_selection)
 
 class Zip_Merger(Page):
     def __init__(self, parent, controller):
@@ -182,12 +205,11 @@ class Zip_Merger(Page):
         pdf_file_name = self.pdf_file_name_var.get()
         temp_dir_name = 'temp'
 
-        if pdf_file_name[-4::] != '.pdf':
-            pdf_file_name += '.pdf'
+        pdf_file_name = Functions.check_pdf_file_name(pdf_file_name)
 
         self.unzip(file_path, temp_dir_name)
         
-        Functions.merge(temp_dir_name, pdf_file_name)
+        Functions.merge(temp_dir_name, pdf_file_name, Functions.search_for_docx(temp_dir_name))
 
         shutil.rmtree(temp_dir_name)
 
@@ -198,6 +220,8 @@ class App(tk.Tk):
         self.geometry("560x520")
         # self.iconbitmap('pdf.ico')
         self.frames = {}
+
+        self.protocol('WM_DELETE_WINDOW', self.on_close)
 
         default_font = tkFont.nametofont('TkDefaultFont')
         default_font.configure(size=16)
@@ -212,6 +236,10 @@ class App(tk.Tk):
         tabControl.add(folder_frame, text='Folder Merger')
         tabControl.add(zip_frame, text='Zip Merger')
         tabControl.pack(expand=1, fill='both')
+
+    def on_close(self):
+        print("closed")
+        self.destroy()
 
 if __name__ == "__main__":
     app = App()
