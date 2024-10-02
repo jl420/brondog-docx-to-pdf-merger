@@ -28,17 +28,6 @@ class Functions:
                     docx.append(f'{dir}/{file}')
 
         return docx
-    
-    def search_for_pdfs(folder_path):
-        dirs = Functions.search_for_dirs(folder_path)
-        pdfs = []
-
-        for dir in dirs:
-            for file in os.listdir(dir):
-                if file[-5::] == '.docx':
-                    pdfs.append(f'{dir}/{file[:-5]}.pdf')
-
-        return pdfs
 
     def merge(folder_path, pdf_file_name, docx_selection):
 
@@ -46,8 +35,6 @@ class Functions:
 
         os.mkdir(temp_dir)
         docs = Functions.search_for_docx(folder_path)
-
-        print(docs, docx_selection)
         
         for doc in docs:
             if os.path.basename(doc) in docx_selection:
@@ -74,7 +61,6 @@ class Functions:
 
                 Functions.print_status_msg(f'Merged : {file}')
         
-        print()
         Functions.print_status_msg(f'Done! > {pdf_file_name}')
         messagebox.showinfo("Merge", "Merge complete")
         merger.write(pdf_file_name)
@@ -132,9 +118,6 @@ class Folder_Merger(Page):
 
         tk.Button(self.content_frame, text="Create File", command=self.to_pdf).pack(pady=20)
 
-    def go_to_zip_merger(self):
-        self.controller.show_frame(Zip_Merger)
-
     def browse_folder(self):
         folder_path = filedialog.askdirectory(
             title="Select a folder"
@@ -160,6 +143,8 @@ class Folder_Merger(Page):
 
         Functions.merge(folder_path, pdf_file_name, docx_selection)
 
+
+
 class Zip_Merger(Page):
     def __init__(self, parent, controller):
         super().__init__(parent, controller)
@@ -169,6 +154,17 @@ class Zip_Merger(Page):
 
         container = tk.Frame(self)
         container.pack(fill="both", expand=True)
+
+        file_dir_scrollbar_y = tk.Scrollbar(container, orient='vertical')
+        file_dir_scrollbar_y.pack(side='right', fill='y')
+        file_dir_scrollbar_x = tk.Scrollbar(container, orient='horizontal')
+        file_dir_scrollbar_x.pack(side='bottom', fill='x')
+        
+        self.file_dir = tk.Listbox(container, selectmode='multiple', yscrollcommand=file_dir_scrollbar_y.set, xscrollcommand=file_dir_scrollbar_x.set)
+        self.file_dir.pack(side='right', fill='both')
+
+        file_dir_scrollbar_y.config(command=self.file_dir.yview)
+        file_dir_scrollbar_x.config(command=self.file_dir.xview)
 
         self.content_frame = tk.Frame(container)
         self.content_frame.pack(side="top", fill="both", expand=True, padx=10)
@@ -180,13 +176,10 @@ class Zip_Merger(Page):
 
         tk.Button(self.content_frame, text="Browse", command=self.browse_zip).pack(pady=5)
 
-        tk.Label(self.content_frame, text="PDF File Name (ex: merged.pdf):").pack(pady=5)
+        tk.Label(self.content_frame, text="PDF File Name:").pack(pady=5)
         tk.Entry(self.content_frame, textvariable=self.pdf_file_name_var, width=30).pack(pady=5)
 
         tk.Button(self.content_frame, text="Create File", command=self.to_pdf).pack(pady=20)
-
-    def go_to_folder_merger(self):
-        self.controller.show_frame(Folder_Merger)
 
     def browse_zip(self):
         file_path = filedialog.askopenfilename(
@@ -196,6 +189,15 @@ class Zip_Merger(Page):
         if file_path:
             self.file_path_var.set(file_path)
 
+        temp_dir_name = 'unzipped'
+        self.unzip(file_path, temp_dir_name)
+
+        self.file_dir.delete(0, 'end')
+        for file in Functions.search_for_docx(temp_dir_name):
+            self.file_dir.insert('end', f'\'{os.path.basename(file)}\' ({file})')
+            self.file_dir.select_set(0, 'end')
+        shutil.rmtree(temp_dir_name)
+
     def unzip(self, file_path, temp_dir_name):
         with zipfile.ZipFile(file_path, 'r') as zip_ref:
             zip_ref.extractall(temp_dir_name)
@@ -203,36 +205,40 @@ class Zip_Merger(Page):
     def to_pdf(self):
         file_path = self.file_path_var.get()
         pdf_file_name = self.pdf_file_name_var.get()
-        temp_dir_name = 'temp'
+        temp_dir_name = 'unzipped'
 
         pdf_file_name = Functions.check_pdf_file_name(pdf_file_name)
 
         self.unzip(file_path, temp_dir_name)
+
+        docx_selection = []
+        for i in self.file_dir.curselection():
+            docx = self.file_dir.get(i)
+            docx_selection.append(docx[1:docx.find("'", 1)])
         
-        Functions.merge(temp_dir_name, pdf_file_name, Functions.search_for_docx(temp_dir_name))
+        Functions.merge(temp_dir_name, pdf_file_name, docx_selection)
 
         shutil.rmtree(temp_dir_name)
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
+
         self.title("DOCX to PDF Merger")
         self.geometry("560x520")
-        # self.iconbitmap('pdf.ico')
-        self.frames = {}
-
+        try:
+            self.iconbitmap('pdf.ico')
+        except tk.TclError:
+            Functions.print_status_msg('Warning: Ico not loaded')
         self.protocol('WM_DELETE_WINDOW', self.on_close)
 
         default_font = tkFont.nametofont('TkDefaultFont')
         default_font.configure(size=16)
-
         self.option_add('*Font', default_font)
 
         tabControl = ttk.Notebook(self)
-
         folder_frame = Folder_Merger(self, self)
         zip_frame = Zip_Merger(self, self)
-
         tabControl.add(folder_frame, text='Folder Merger')
         tabControl.add(zip_frame, text='Zip Merger')
         tabControl.pack(expand=1, fill='both')
