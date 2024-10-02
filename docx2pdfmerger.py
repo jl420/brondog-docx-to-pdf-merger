@@ -244,7 +244,7 @@ class App(tk.Tk):
         tabControl.pack(expand=1, fill='both')
 
     def on_close(self):
-        print("closed")
+        Functions.print_status_msg('Exiting . . .')
         self.destroy()
 
 if __name__ == "__main__":
